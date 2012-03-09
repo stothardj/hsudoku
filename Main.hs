@@ -20,7 +20,6 @@ normalizePossibility (Possibly []) = Impossible
 normalizePossibility (Possibly [x]) = Definitely x
 normalizePossibility x = x
 
-
 -- Transform list-of-list structure into map of coord to data
 boxToMap box =
   Data.Map.fromList $ concatMap (map reorder) ((addColNums . addRowNums) box)
@@ -41,6 +40,17 @@ filterCoords board coords =
       normalizePossibility $ Possibly (filter (\x -> Definitely x `notElem` defs) ls)
     remainingPossibilities =
       Data.Map.map (removePossibilities $ Data.Map.elems definites) possibles
+
+-- Filter out all definite squares from row r of length l
+filterRow board r l = filterCoords board [(r,i) | i <- [0..l-1]]
+
+-- Filter out all definite squares from col c of length l
+filterCol board c l = filterCoords board [(i,c) | i <- [0..l-1]]
+
+-- Filter n rows/cols
+filterN f board n l = foldl (\ accum x -> f accum x l) board [0..n-1]
+filterRows = filterN filterRow
+filterCols = filterN filterCol
 
 main = do
   putStrLn "Hello"
