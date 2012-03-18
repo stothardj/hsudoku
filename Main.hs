@@ -46,7 +46,7 @@ boxToMap box =
 initBoard = boxToMap . parseNumBoard
 
 -- Filter out all definite squares from other possible squares in given coords
-filterCoords board coords =
+filterCoords coords board =
   Data.Map.unions [remainingPossibilities, notInRange, definites]
   where
     ( inRange, notInRange ) = Data.Map.partitionWithKey (\k v -> k `elem` coords) board
@@ -60,24 +60,31 @@ filterCoords board coords =
       Data.Map.map (removePossibilities $ Data.Map.elems definites) possibles
 
 -- Filter out all definite squares from row r of length l
-filterRow board r l = filterCoords board [(r,i) | i <- [0..l-1]]
+filterRow r l = filterCoords [(r,i) | i <- [0..l-1]]
 
 -- Filter out all definite squares from col c of length l
-filterCol board c l = filterCoords board [(i,c) | i <- [0..l-1]]
+filterCol c l = filterCoords [(i,c) | i <- [0..l-1]]
 
 -- Filter out all definite squares from box top-left corner at (r,c) of rn rows, cn cols
-filterBox board r rn c cn = filterCoords board [(i,j) | i <- [r..r+rn-1], j <- [c..c+cn-1]]
+filterBox r rn c cn = filterCoords [(i,j) | i <- [r..r+rn-1], j <- [c..c+cn-1]]
 
 -- Filter n rows/cols
-filterN f board n l = foldl (\ accum x -> f accum x l) board [0..n-1]
+filterN f n l board = foldl (\ accum x -> f x l accum) board [0..n-1]
 filterRows = filterN filterRow
 filterCols = filterN filterCol
 
 -- Filter boxes each with rn width and cn height
-filterBoxes board n rn cn = 
+filterBoxes n rn cn board = 
   foldl foldOverCol board [0,cn..n-1] 
   where
-    foldOverCol cboard c = foldl (\ accum r -> filterBox accum r rn c cn) cboard [0,rn..n-1]
+    foldOverCol cboard c = foldl (\ accum r -> filterBox r rn c cn accum) cboard [0,rn..n-1]
+
+-- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
+filterPass n rn cn board =
+  filterBoxes n rn cn board''
+  where
+    board' = filterRows n n board
+    board'' = filterCols n n board'
 
 main = do
   putStrLn "Hello"
