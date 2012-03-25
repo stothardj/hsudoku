@@ -1,15 +1,16 @@
 module Main where
 
-import qualified Data.Map
+import qualified Data.Vector as V
+import qualified Data.Set as S
 
--- Use "length" which returns Int. Unlikely able to solve boards larger than Int size
-data SudokuSquare = Definitely Int | Possibly [Int] | Impossible
-  deriving (Show,Eq)
-
-type SudokuRow = [SudokuSquare]
-type SudokuBox = [SudokuRow]
+-- A sudoku square is a set of possible numbers which could go there
+type SudokuSquare = S.Set Int
+-- Currently representing grid as a vector of vectors
+type Grid a = V.Vector (V.Vector a)
+type SudokuBoard = Grid SudokuSquare
 
 -- Calculate fixed point. Apply f until x = f x
+-- TODO: Replace with Control.Monad.Fix
 fixedPoint f x
   | y == x = x
   | otherwise = fixedPoint f y
@@ -20,75 +21,98 @@ fixedPoint f x
 validBoardSize :: Int -> Int -> Int -> Bool
 validBoardSize n r c = n == r * c
 
--- Normalize possibility to sensical representation
-normalizePossibility (Possibly []) = Impossible
-normalizePossibility (Possibly [x]) = Definitely x
-normalizePossibility x = x
+-- Transform list-of-list structure into vector-of-vector structure
+listsToGrid :: [[a]] -> Grid a
+listsToGrid = V.fromList . map V.fromList
 
--- Transform list-of-list numbers into sudoku squares. A zero represents an empty box
-parseNumBoard b = 
-  map (map replace0) b
+-- Replace a number representation of a square with a set of possibilities from 1 to the size n
+-- The number zero is special, as it represents an open square
+replaceOpenSquares :: Int -> Grid Int -> SudokuBoard
+replaceOpenSquares n =
+  V.map (V.map replace0)
   where
-    n = length b
     replace0 x
-      | x == 0 = Possibly [1..n]
-      | otherwise = Definitely x
+      | x == 0 = S.fromList [1..n]
+      | otherwise = S.singleton x
 
--- Transform list-of-list structure into map of coord to data
-boxToMap box =
-  Data.Map.fromList $ concatMap (map reorder) ((addColNums . addRowNums) box)
+-- Transform list-of-list board representation using zeroes as open squares
+-- into internal representation
+initBoard :: [[Int]] -> SudokuBoard
+initBoard board = replaceOpenSquares n (listsToGrid board)
   where
-    addColNums = map $ zip [0..]
-    addRowNums = zipWith (\n r -> zip (repeat n) r) [0..]
-    reorder (col,(row,item)) = ((row,col),item) 
+    n = length board
 
--- Transform input representation into internal representation
-initBoard = boxToMap . parseNumBoard
-
--- Filter out all definite squares from other possible squares in given coords
-filterCoords coords board =
-  Data.Map.unions [remainingPossibilities, notInRange, definites]
+-- Given a vector of sudoku squares, use singletons which represent definite values
+-- to remove from unsure possibilities
+filterPossibilities :: V.Vector SudokuSquare -> V.Vector SudokuSquare
+filterPossibilities ps =
+  V.map removeImpossible ps
   where
-    ( inRange, notInRange ) = Data.Map.partitionWithKey (\k v -> k `elem` coords) board
-    isDefinite (Definitely _) = True
-    isDefinite _ = False
-    ( definites, possibles ) = Data.Map.partition isDefinite inRange
-    removePossibilities defs (Possibly ls) =
-      normalizePossibility $ Possibly (filter (\x -> Definitely x `notElem` defs) ls)
-    removePossibilities defs Impossible = Impossible
-    remainingPossibilities =
-      Data.Map.map (removePossibilities $ Data.Map.elems definites) possibles
+    isSingleton = (== 1) . S.size
+    accumulateSingletons acc x
+      | isSingleton x = x `S.union` acc
+      | otherwise = acc
+    definites = V.foldl accumulateSingletons S.empty ps
+    removeImpossible p
+      | isSingleton p = p
+      | otherwise = S.difference p definites
 
--- Filter out all definite squares from row r of length l
-filterRow r l = filterCoords [(r,i) | i <- [0..l-1]]
+-- Filter all rows using above function
+filterRows :: SudokuBoard -> SudokuBoard
+filterRows = V.map filterPossibilities
 
--- Filter out all definite squares from col c of length l
-filterCol c l = filterCoords [(i,c) | i <- [0..l-1]]
-
--- Filter out all definite squares from box top-left corner at (r,c) of rn rows, cn cols
-filterBox r rn c cn = filterCoords [(i,j) | i <- [r..r+rn-1], j <- [c..c+cn-1]]
-
--- Filter n rows/cols
-filterN f n l board = foldl (\ accum x -> f x l accum) board [0..n-1]
-filterRows = filterN filterRow
-filterCols = filterN filterCol
-
--- Filter boxes each with rn width and cn height
-filterBoxes n rn cn board = 
-  foldl foldOverCol board [0,cn..n-1] 
+-- Transpose vector-of-vectors. This may be expensive (maybe?) but would be cheap (built-in)
+-- if anyone ever wanted to port this to using the repa library
+transpose :: Grid a -> Grid a
+transpose grid =
+  V.map (\k -> getCol k grid) (V.generate n id)
   where
-    foldOverCol cboard c = foldl (\ accum r -> filterBox r rn c cn accum) cboard [0,rn..n-1]
+    n = V.length grid
+    getCol k = V.map (V.! k)
 
--- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
-filterPass n rn cn board =
-  filterBoxes n rn cn board''
-  where
-    board' = filterRows n n board
-    board'' = filterCols n n board'
+-- Filter all cols
+filterCols = transpose . filterRows . transpose
 
-main = do
-  putStrLn "Hello"
-
+-- -- Filter out all definite squares from other possible squares in given coords
+-- filterCoords coords board =
+--   Data.Map.unions [remainingPossibilities, notInRange, definites]
+--   where
+--     ( inRange, notInRange ) = Data.Map.partitionWithKey (\k v -> k `elem` coords) board
+--     isDefinite (Definitely _) = True
+--     isDefinite _ = False
+--     ( definites, possibles ) = Data.Map.partition isDefinite inRange
+--     removePossibilities defs (Possibly ls) =
+--       Possibly (filter (\x -> Definitely x `notElem` defs) ls)
+--     removePossibilities defs Impossible = Impossible
+--     remainingPossibilities =
+--       Data.Map.map (removePossibilities $ Data.Map.elems definites) possibles
+-- 
+-- -- Filter out all definite squares from row r of length l
+-- filterRow r l = filterCoords [(r,i) | i <- [0..l-1]]
+-- 
+-- -- Filter out all definite squares from col c of length l
+-- filterCol c l = filterCoords [(i,c) | i <- [0..l-1]]
+-- 
+-- -- Filter out all definite squares from box top-left corner at (r,c) of rn rows, cn cols
+-- filterBox r rn c cn = filterCoords [(i,j) | i <- [r..r+rn-1], j <- [c..c+cn-1]]
+-- 
+-- -- Filter n rows/cols
+-- filterN f n l board = foldl (\ accum x -> f x l accum) board [0..n-1]
+-- filterRows = filterN filterRow
+-- filterCols = filterN filterCol
+-- 
+-- -- Filter boxes each with rn width and cn height
+-- filterBoxes n rn cn board = 
+--   foldl foldOverCol board [0,cn..n-1] 
+--   where
+--     foldOverCol cboard c = foldl (\ accum r -> filterBox r rn c cn accum) cboard [0,rn..n-1]
+-- 
+-- -- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
+-- filterPass n rn cn board =
+--   filterBoxes n rn cn board''
+--   where
+--     board' = filterRows n n board
+--     board'' = filterCols n n board'
 
 -- Test Cases
 
