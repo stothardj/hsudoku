@@ -17,6 +17,18 @@ fixedPoint f x
   where
     y = f x
 
+-- Return whether a set only contains one element
+isSingleton :: S.Set a -> Bool
+isSingleton = (== 1) . S.size
+
+-- Concatenate a vector of vectors
+concatVectors :: V.Vector (V.Vector a) -> V.Vector a
+concatVectors = V.foldl (V.++) V.empty
+
+-- Slice a vector into num vectors of size size
+multislice :: Int -> Int -> V.Vector a -> V.Vector (V.Vector a)
+multislice size num g = V.generate num (\k -> V.slice (k*size) size g)
+
 -- Returns whether an nxn board with boxes of r rows and c cols is a valid sudoku board
 validBoardSize :: Int -> Int -> Int -> Bool
 validBoardSize n r c = n == r * c
@@ -48,7 +60,6 @@ filterPossibilities :: V.Vector SudokuSquare -> V.Vector SudokuSquare
 filterPossibilities ps =
   V.map removeImpossible ps
   where
-    isSingleton = (== 1) . S.size
     accumulateSingletons acc x
       | isSingleton x = x `S.union` acc
       | otherwise = acc
@@ -73,14 +84,6 @@ transpose grid =
 -- Filter all cols
 filterCols :: SudokuBoard -> SudokuBoard
 filterCols = transpose . filterRows . transpose
-
--- Concatenate a vector of vectors
-concatVectors :: V.Vector (V.Vector a) -> V.Vector a
-concatVectors = V.foldl (V.++) V.empty
-
--- Slice a vector into num vectors of size size
-multislice :: Int -> Int -> V.Vector a -> V.Vector (V.Vector a)
-multislice size num g = V.generate num (\k -> V.slice (k*size) size g)
 
 -- Filter all boxes
 filterBoxes :: Int -> Int -> SudokuBoard -> SudokuBoard
