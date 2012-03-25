@@ -75,12 +75,15 @@ filterCols :: SudokuBoard -> SudokuBoard
 filterCols = transpose . filterRows . transpose
 
 -- Concatenate a vector of vectors
+concatVectors :: V.Vector (V.Vector a) -> V.Vector a
 concatVectors = V.foldl (V.++) V.empty
 
 -- Slice a vector into num vectors of size size
+multislice :: Int -> Int -> V.Vector a -> V.Vector (V.Vector a)
 multislice size num g = V.generate num (\k -> V.slice (k*size) size g)
 
 -- Filter all boxes
+filterBoxes :: Int -> Int -> SudokuBoard -> SudokuBoard
 filterBoxes rn cn grid =
   (intoBoxes . filterRows . intoBoxes) grid
   where
@@ -91,12 +94,10 @@ filterBoxes rn cn grid =
     pos = [br*numCols*rn+r*numCols+bc*cn+c | br <- [0..numBoxV-1], bc <- [0..numBoxH-1], r <- [0..rn-1], c <- [0..cn-1]]
     intoBoxes = multislice (rn*cn) (numBoxH*numBoxV) . (`V.backpermute` V.fromList pos) . concatVectors
 
--- -- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
--- filterPass n rn cn board =
---   filterBoxes n rn cn board''
---   where
---     board' = filterRows n n board
---     board'' = filterCols n n board'
+-- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
+filterPass :: Int -> Int -> SudokuBoard -> SudokuBoard
+filterPass rn cn =
+  filterBoxes rn cn . filterCols . filterRows
 
 -- Test Cases
 
