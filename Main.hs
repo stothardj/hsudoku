@@ -88,22 +88,22 @@ transpose grid =
 filterCols :: SudokuBoard -> Maybe SudokuBoard
 filterCols = fmap transpose . filterRows . transpose
 
--- -- Filter all boxes
--- filterBoxes :: Int -> Int -> SudokuBoard -> SudokuBoard
--- filterBoxes rn cn grid =
---   (intoBoxes . filterRows . intoBoxes) grid
---   where
---     numRows = V.length grid
---     numCols = V.length (V.head grid)
---     numBoxH = numCols `div` cn
---     numBoxV = numRows `div` rn
---     pos = [br*numCols*rn+r*numCols+bc*cn+c | br <- [0..numBoxV-1], bc <- [0..numBoxH-1], r <- [0..rn-1], c <- [0..cn-1]]
---     intoBoxes = multislice (rn*cn) (numBoxH*numBoxV) . (`V.backpermute` V.fromList pos) . concatVectors
--- 
--- -- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
--- filterPass :: Int -> Int -> SudokuBoard -> SudokuBoard
--- filterPass rn cn =
---   filterBoxes rn cn . filterCols . filterRows
+-- Filter all boxes
+filterBoxes :: Int -> Int -> SudokuBoard -> Maybe SudokuBoard
+filterBoxes rn cn grid =
+  (fmap intoBoxes . filterRows . intoBoxes) grid
+  where
+    numRows = V.length grid
+    numCols = V.length (V.head grid)
+    numBoxH = numCols `div` cn
+    numBoxV = numRows `div` rn
+    pos = [br*numCols*rn+r*numCols+bc*cn+c | br <- [0..numBoxV-1], bc <- [0..numBoxH-1], r <- [0..rn-1], c <- [0..cn-1]]
+    intoBoxes = multislice (rn*cn) (numBoxH*numBoxV) . (`V.backpermute` V.fromList pos) . concatVectors
+
+-- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
+filterPass :: Int -> Int -> SudokuBoard -> Maybe SudokuBoard
+filterPass rn cn grid =
+  filterRows grid >>= filterCols >>= filterBoxes rn cn
 
 -- Test Cases
 
