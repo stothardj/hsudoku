@@ -65,7 +65,7 @@ filterRows = V.map filterPossibilities
 -- if anyone ever wanted to port this to using the repa library
 transpose :: Grid a -> Grid a
 transpose grid =
-  V.generate n (\k -> getCol k grid)
+  V.generate n (`getCol` grid)
   where
     n = V.length grid
     getCol k = V.map (V.! k)
@@ -74,40 +74,23 @@ transpose grid =
 filterCols :: SudokuBoard -> SudokuBoard
 filterCols = transpose . filterRows . transpose
 
--- -- Filter out all definite squares from other possible squares in given coords
--- filterCoords coords board =
---   Data.Map.unions [remainingPossibilities, notInRange, definites]
---   where
---     ( inRange, notInRange ) = Data.Map.partitionWithKey (\k v -> k `elem` coords) board
---     isDefinite (Definitely _) = True
---     isDefinite _ = False
---     ( definites, possibles ) = Data.Map.partition isDefinite inRange
---     removePossibilities defs (Possibly ls) =
---       Possibly (filter (\x -> Definitely x `notElem` defs) ls)
---     removePossibilities defs Impossible = Impossible
---     remainingPossibilities =
---       Data.Map.map (removePossibilities $ Data.Map.elems definites) possibles
--- 
--- -- Filter out all definite squares from row r of length l
--- filterRow r l = filterCoords [(r,i) | i <- [0..l-1]]
--- 
--- -- Filter out all definite squares from col c of length l
--- filterCol c l = filterCoords [(i,c) | i <- [0..l-1]]
--- 
--- -- Filter out all definite squares from box top-left corner at (r,c) of rn rows, cn cols
--- filterBox r rn c cn = filterCoords [(i,j) | i <- [r..r+rn-1], j <- [c..c+cn-1]]
--- 
--- -- Filter n rows/cols
--- filterN f n l board = foldl (\ accum x -> f x l accum) board [0..n-1]
--- filterRows = filterN filterRow
--- filterCols = filterN filterCol
--- 
--- -- Filter boxes each with rn width and cn height
--- filterBoxes n rn cn board = 
---   foldl foldOverCol board [0,cn..n-1] 
---   where
---     foldOverCol cboard c = foldl (\ accum r -> filterBox r rn c cn accum) cboard [0,rn..n-1]
--- 
+-- Concatenate a vector of vectors
+concatVectors = V.foldl (V.++) V.empty
+
+-- Slice a vector into num vectors of size size
+multislice size num g = V.generate num (\k -> V.slice (k*size) size g)
+
+-- Filter all boxes
+filterBoxes rn cn grid =
+  (intoBoxes . filterRows . intoBoxes) grid
+  where
+    numRows = V.length grid
+    numCols = V.length (V.head grid)
+    numBoxH = numCols `div` cn
+    numBoxV = numRows `div` rn
+    pos = [br*numCols*rn+r*numCols+bc*cn+c | br <- [0..numBoxV-1], bc <- [0..numBoxH-1], r <- [0..rn-1], c <- [0..cn-1]]
+    intoBoxes = multislice (rn*cn) (numBoxH*numBoxV) . (`V.backpermute` V.fromList pos) . concatVectors
+
 -- -- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
 -- filterPass n rn cn board =
 --   filterBoxes n rn cn board''
