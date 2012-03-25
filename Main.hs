@@ -10,12 +10,12 @@ type Grid a = V.Vector (V.Vector a)
 type SudokuBoard = Grid SudokuSquare
 
 -- Calculate fixed point. Apply f until x = f x
--- TODO: Replace with Control.Monad.Fix
-fixedPoint f x
-  | y == x = x
-  | otherwise = fixedPoint f y
-  where
-    y = f x
+-- TODO: Replace with Control.Monad.Fix if appropriate
+fixedPointM f x = do
+  y <- f x
+  if y == x
+    then return x
+    else fixedPointM f y
 
 -- Return whether a set only contains one element
 isSingleton :: S.Set a -> Bool
