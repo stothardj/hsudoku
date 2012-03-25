@@ -65,12 +65,13 @@ filterRows = V.map filterPossibilities
 -- if anyone ever wanted to port this to using the repa library
 transpose :: Grid a -> Grid a
 transpose grid =
-  V.map (\k -> getCol k grid) (V.generate n id)
+  V.generate n (\k -> getCol k grid)
   where
     n = V.length grid
     getCol k = V.map (V.! k)
 
 -- Filter all cols
+filterCols :: SudokuBoard -> SudokuBoard
 filterCols = transpose . filterRows . transpose
 
 -- -- Filter out all definite squares from other possible squares in given coords
