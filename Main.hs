@@ -56,51 +56,53 @@ initBoard board = replaceOpenSquares n (listsToGrid board)
 
 -- Given a vector of sudoku squares, use singletons which represent definite values
 -- to remove from unsure possibilities
-filterPossibilities :: V.Vector SudokuSquare -> V.Vector SudokuSquare
-filterPossibilities ps =
-  V.map removeImpossible ps
+-- Fails if there are two singletons with the same value or any empty sets
+filterPossibilities :: V.Vector SudokuSquare -> Maybe (V.Vector SudokuSquare)
+filterPossibilities ps = do
+  definites <- V.foldM accumulateSingletons S.empty ps
+  V.mapM (removeImpossible definites) ps
   where
     accumulateSingletons acc x
-      | isSingleton x = x `S.union` acc
-      | otherwise = acc
-    definites = V.foldl accumulateSingletons S.empty ps
-    removeImpossible p
-      | isSingleton p = p
-      | otherwise = S.difference p definites
+      | isSingleton x = if x `S.isSubsetOf` acc then Nothing else Just (x `S.union` acc)
+      | otherwise = Just acc
+    removeImpossible defs p
+      | S.null p = Nothing
+      | isSingleton p = Just p
+      | otherwise = Just (S.difference p defs)
 
--- Filter all rows using above function
-filterRows :: SudokuBoard -> SudokuBoard
-filterRows = V.map filterPossibilities
-
--- Transpose vector-of-vectors. This may be expensive (maybe?) but would be cheap (built-in)
--- if anyone ever wanted to port this to using the repa library
-transpose :: Grid a -> Grid a
-transpose grid =
-  V.generate n (`getCol` grid)
-  where
-    n = V.length grid
-    getCol k = V.map (V.! k)
-
--- Filter all cols
-filterCols :: SudokuBoard -> SudokuBoard
-filterCols = transpose . filterRows . transpose
-
--- Filter all boxes
-filterBoxes :: Int -> Int -> SudokuBoard -> SudokuBoard
-filterBoxes rn cn grid =
-  (intoBoxes . filterRows . intoBoxes) grid
-  where
-    numRows = V.length grid
-    numCols = V.length (V.head grid)
-    numBoxH = numCols `div` cn
-    numBoxV = numRows `div` rn
-    pos = [br*numCols*rn+r*numCols+bc*cn+c | br <- [0..numBoxV-1], bc <- [0..numBoxH-1], r <- [0..rn-1], c <- [0..cn-1]]
-    intoBoxes = multislice (rn*cn) (numBoxH*numBoxV) . (`V.backpermute` V.fromList pos) . concatVectors
-
--- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
-filterPass :: Int -> Int -> SudokuBoard -> SudokuBoard
-filterPass rn cn =
-  filterBoxes rn cn . filterCols . filterRows
+-- -- Filter all rows using above function
+-- filterRows :: SudokuBoard -> SudokuBoard
+-- filterRows = V.map filterPossibilities
+-- 
+-- -- Transpose vector-of-vectors. This may be expensive (maybe?) but would be cheap (built-in)
+-- -- if anyone ever wanted to port this to using the repa library
+-- transpose :: Grid a -> Grid a
+-- transpose grid =
+--   V.generate n (`getCol` grid)
+--   where
+--     n = V.length grid
+--     getCol k = V.map (V.! k)
+-- 
+-- -- Filter all cols
+-- filterCols :: SudokuBoard -> SudokuBoard
+-- filterCols = transpose . filterRows . transpose
+-- 
+-- -- Filter all boxes
+-- filterBoxes :: Int -> Int -> SudokuBoard -> SudokuBoard
+-- filterBoxes rn cn grid =
+--   (intoBoxes . filterRows . intoBoxes) grid
+--   where
+--     numRows = V.length grid
+--     numCols = V.length (V.head grid)
+--     numBoxH = numCols `div` cn
+--     numBoxV = numRows `div` rn
+--     pos = [br*numCols*rn+r*numCols+bc*cn+c | br <- [0..numBoxV-1], bc <- [0..numBoxH-1], r <- [0..rn-1], c <- [0..cn-1]]
+--     intoBoxes = multislice (rn*cn) (numBoxH*numBoxV) . (`V.backpermute` V.fromList pos) . concatVectors
+-- 
+-- -- A single filter pass over the board which filters definites out of possibilities based on row, col, and box
+-- filterPass :: Int -> Int -> SudokuBoard -> SudokuBoard
+-- filterPass rn cn =
+--   filterBoxes rn cn . filterCols . filterRows
 
 -- Test Cases
 
