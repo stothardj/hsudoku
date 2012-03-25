@@ -67,9 +67,10 @@ filterPossibilities ps = do
       | x `S.isSubsetOf` acc = Nothing
       | otherwise = Just (x `S.union` acc)
     removeImpossible defs p
-      | S.null p = Nothing
       | isSingleton p = Just p
-      | otherwise = Just (S.difference p defs)
+      | S.null diff = Nothing
+      | otherwise = Just diff
+      where diff = S.difference p defs
 
 -- Filter all rows using above function
 filterRows :: SudokuBoard -> Maybe SudokuBoard
