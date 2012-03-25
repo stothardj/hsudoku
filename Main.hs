@@ -63,30 +63,31 @@ filterPossibilities ps = do
   V.mapM (removeImpossible definites) ps
   where
     accumulateSingletons acc x
-      | isSingleton x = if x `S.isSubsetOf` acc then Nothing else Just (x `S.union` acc)
-      | otherwise = Just acc
+      | not $ isSingleton x = Just acc
+      | x `S.isSubsetOf` acc = Nothing
+      | otherwise = Just (x `S.union` acc)
     removeImpossible defs p
       | S.null p = Nothing
       | isSingleton p = Just p
       | otherwise = Just (S.difference p defs)
 
--- -- Filter all rows using above function
--- filterRows :: SudokuBoard -> SudokuBoard
--- filterRows = V.map filterPossibilities
--- 
--- -- Transpose vector-of-vectors. This may be expensive (maybe?) but would be cheap (built-in)
--- -- if anyone ever wanted to port this to using the repa library
--- transpose :: Grid a -> Grid a
--- transpose grid =
---   V.generate n (`getCol` grid)
---   where
---     n = V.length grid
---     getCol k = V.map (V.! k)
--- 
--- -- Filter all cols
--- filterCols :: SudokuBoard -> SudokuBoard
--- filterCols = transpose . filterRows . transpose
--- 
+-- Filter all rows using above function
+filterRows :: SudokuBoard -> Maybe SudokuBoard
+filterRows = V.mapM filterPossibilities
+
+-- Transpose vector-of-vectors. This may be expensive (maybe?) but would be cheap (built-in)
+-- if anyone ever wanted to port this to using the repa library
+transpose :: Grid a -> Grid a
+transpose grid =
+  V.generate n (`getCol` grid)
+  where
+    n = V.length grid
+    getCol k = V.map (V.! k)
+
+-- Filter all cols
+filterCols :: SudokuBoard -> Maybe SudokuBoard
+filterCols = fmap transpose . filterRows . transpose
+
 -- -- Filter all boxes
 -- filterBoxes :: Int -> Int -> SudokuBoard -> SudokuBoard
 -- filterBoxes rn cn grid =
