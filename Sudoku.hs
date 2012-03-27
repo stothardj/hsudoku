@@ -25,7 +25,8 @@ module Sudoku
    SudokuBoard,
    validBoardSize,
    initBoard,
-   solveBoard) where
+   solveBoard,
+   showBoard) where
 
 import qualified Data.List as L
 import qualified Data.Maybe as M
@@ -59,7 +60,10 @@ multislice :: Int -> Int -> V.Vector a -> V.Vector (V.Vector a)
 multislice size num g = V.generate num (\k -> V.slice (k*size) size g)
 
 -- |Returns whether an nxn board with boxes of r rows and c cols is a valid sudoku board
-validBoardSize :: Int -> Int -> Int -> Bool
+validBoardSize :: Int   -- ^ The value n of an nxn board. That is, the total numbers across
+               -> Int   -- ^ The number of rows in an internal box
+               -> Int   -- ^ The number of cols in an internal box
+               -> Bool
 validBoardSize n r c = n == r * c
 
 -- |Transform list-of-list structure into vector-of-vector structure
@@ -170,3 +174,13 @@ solveBoard rn cn board = do
            (board1, board2) <- M.maybeToList $ guess filtered
            solveBoard rn cn board1 `L.union` solveBoard rn cn board2
 
+-- |Show a sudoku board in an easy to read format. Will look slightly
+--  uglier if there are numbers greater than one digit long. Assumes
+--  the board is solved, otherwise it will just print out one of the
+--  possible numbers in that spot
+showBoard :: SudokuBoard -> String
+showBoard =
+  L.unlines . V.toList . (V.map (unwords . V.toList . V.map (show . unset)))
+  where
+    unset :: SudokuSquare -> Int
+    unset = head . S.elems

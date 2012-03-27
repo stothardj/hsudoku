@@ -46,4 +46,4 @@ main = do
   let cn = nums !! 2
   let flatBoard = drop 3 nums
   let board = chopList flatBoard n
-  print $ solveBoard rn cn (initBoard board)
+  mapM_ (putStrLn . showBoard) (solveBoard rn cn (initBoard board))
