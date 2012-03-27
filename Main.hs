@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Data.List as L
 import qualified Data.Maybe as M
 import qualified Data.Vector as V
 import qualified Data.Set as S
@@ -11,7 +12,6 @@ type Grid a = V.Vector (V.Vector a)
 type SudokuBoard = Grid SudokuSquare
 
 -- Calculate fixed point. Apply f until x = f x
--- TODO: Replace with Control.Monad.Fix if appropriate
 fixedPointM f x = do
   y <- f x
   if y == x
@@ -129,8 +129,17 @@ guess board = do
     unsure = (> 1) . S.size
     firstUnsureInRow = V.map (V.findIndex unsure) board
 
--- Test Cases
+-- Solve a sudoku board
+solveBoard :: Int -> Int -> SudokuBoard -> [SudokuBoard]
+solveBoard rn cn board = do
+  filtered <- M.maybeToList $ fixedPointM (filterPass rn cn) board
+  if boardSolved filtered
+    then return filtered
+    else do
+           (board1, board2) <- M.maybeToList $ guess filtered
+           (solveBoard rn cn board1) `L.union` (solveBoard rn cn board2)
 
+-- Test Cases
 -- Board 1. Inner boxes are 3x3
 board1 = initBoard [
   [0, 0, 5, 0, 1, 2, 0, 4, 7],
@@ -157,7 +166,7 @@ board2 = initBoard [
   [0, 0, 6, 9, 4, 5, 0, 3, 0]
   ]
 
--- Board 3. Inner boxes are 3x2
+-- Board 3. Inner boxes are 2x3
 board3 = initBoard [
   [0, 0, 0, 0, 2, 0],
   [1, 0, 0, 3, 0, 0],
