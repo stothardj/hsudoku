@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Data.Maybe as M
 import qualified Data.Vector as V
 import qualified Data.Set as S
 
@@ -70,7 +71,7 @@ filterPossibilities ps = do
       | isSingleton p = Just p
       | S.null diff = Nothing
       | otherwise = Just diff
-      where diff = S.difference p defs
+      where diff = p S.\\ defs
 
 -- Filter all rows using above function
 filterRows :: SudokuBoard -> Maybe SudokuBoard
@@ -105,6 +106,28 @@ filterBoxes rn cn grid =
 filterPass :: Int -> Int -> SudokuBoard -> Maybe SudokuBoard
 filterPass rn cn grid =
   filterRows grid >>= filterCols >>= filterBoxes rn cn
+
+-- Return whether the board is solved
+boardSolved :: SudokuBoard -> Bool
+boardSolved = V.all (V.all isSingleton)
+
+-- Replace a single sudoku board with two sudoku boards. The first is with a single
+-- unsure spot replaced with a guess. The second is with that guess removed. Fails
+-- if there are no unsure places in the board
+guess :: SudokuBoard -> Maybe (SudokuBoard, SudokuBoard)
+guess board = do
+  unsureRow <- V.findIndex M.isJust firstUnsureInRow
+  unsureCol <- firstUnsureInRow V.! unsureRow
+  let (min, others) = S.deleteFindMin (board V.! unsureRow V.! unsureCol)
+  let tr = board V.! unsureRow
+  let row1 = V.update tr (V.singleton (unsureCol, S.singleton min))
+  let row2 = V.update tr (V.singleton (unsureCol, others))
+  let board1 = V.update board (V.singleton (unsureRow, row1))
+  let board2 = V.update board (V.singleton (unsureRow, row2))
+  return (board1, board2)
+  where
+    unsure = (> 1) . S.size
+    firstUnsureInRow = V.map (V.findIndex unsure) board
 
 -- Test Cases
 
