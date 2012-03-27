@@ -1,0 +1,13 @@
+Name:		hsudoku
+Version:	0.0
+Description:	Generalized sudoku solver
+License:	GPL
+License-file:	COPYING
+Author:		Jake Stothard
+Maintainer:	stothardj@gmail.com
+Build-Type:	Simple
+Cabal-Version:	>=1.2
+
+Executable hsudoku
+  Main-is:	Main.hs
+  Build-Depends: base, containers, vector
