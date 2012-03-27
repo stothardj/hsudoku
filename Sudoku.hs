@@ -162,8 +162,8 @@ guess board = do
     firstUnsureInRow = V.map (V.findIndex unsure) board
 
 -- |Solve a sudoku board. Returns a list of all possible solutions
-solveBoard :: Int   -- ^ The number of rows in an internal board
-           -> Int   -- ^ The number of cols in an internal board
+solveBoard :: Int   -- ^ The number of rows in an internal box
+           -> Int   -- ^ The number of cols in an internal box
            -> SudokuBoard -- ^ The sudoku board to solve
            -> [SudokuBoard]
 solveBoard rn cn board = do
