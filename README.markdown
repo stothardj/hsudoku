@@ -1,4 +1,5 @@
 Haskell Sudoku Solver
+=====================
 
 This program finds all solutions to sudoku boards of all sizes.
 
